@@ -350,7 +350,7 @@ lib.composeManyExtensions [
 
       borgbackup = super.borgbackup.overridePythonAttrs (
         old: {
-          BORG_OPENSSL_PREFIX = pkgs.openssl.dev;
+          env.BORG_OPENSSL_PREFIX = pkgs.openssl.dev;
           nativeBuildInputs = (old.nativeBuildInputs or [ ]) ++ [ pkg-config ];
           buildInputs = (old.buildInputs or [ ]) ++ [ pkgs.openssl pkgs.acl ];
         }
@@ -457,7 +457,7 @@ lib.composeManyExtensions [
               --replace 'cmd = [make]' \
               'cmd = ["${pkgs.cmdstan}/bin/stan"]'
           '';
-          CMDSTAN = "${pkgs.cmdstan}";
+          env.CMDSTAN = "${pkgs.cmdstan}";
         }
       );
 
@@ -491,12 +491,14 @@ lib.composeManyExtensions [
 
       coincurve = super.coincurve.overridePythonAttrs (
         _old: {
-          # package setup logic
-          LIB_DIR = "${lib.getLib pkgs.secp256k1}/lib";
+          env = {
+            # package setup logic
+            LIB_DIR = "${lib.getLib pkgs.secp256k1}/lib";
 
-          # for actual C toolchain build
-          NIX_CFLAGS_COMPILE = "-I ${lib.getDev pkgs.secp256k1}/include";
-          NIX_LDFLAGS = "-L ${lib.getLib pkgs.secp256k1}/lib";
+            # for actual C toolchain build
+            NIX_CFLAGS_COMPILE = "-I ${lib.getDev pkgs.secp256k1}/include";
+            NIX_LDFLAGS = "-L ${lib.getLib pkgs.secp256k1}/lib";
+          };
         }
       );
 
@@ -570,7 +572,7 @@ lib.composeManyExtensions [
                 ++ lib.optionals stdenv.isDarwin [ pkgs.darwin.apple_sdk.frameworks.Security pkgs.libiconv ];
               propagatedBuildInputs = old.propagatedBuildInputs or [ ] ++ [ self.cffi ];
             } // lib.optionalAttrs (lib.versionAtLeast old.version "3.4" && lib.versionOlder old.version "3.5") {
-              CRYPTOGRAPHY_DONT_BUILD_RUST = "1";
+              env.CRYPTOGRAPHY_DONT_BUILD_RUST = "1";
             } // lib.optionalAttrs (lib.versionAtLeast old.version "3.5" && !isWheel) rec {
               cargoDeps =
                 pkgs.rustPlatform.fetchCargoTarball {
@@ -739,7 +741,7 @@ lib.composeManyExtensions [
           (
             super.docutils.overridePythonAttrs (
               _old: {
-                SETUPTOOLS_USE_DISTUTILS = "stdlib";
+                env.SETUPTOOLS_USE_DISTUTILS = "stdlib";
               }
             )
           ) else super.docutils;
@@ -833,7 +835,7 @@ lib.composeManyExtensions [
       );
 
       flatbuffers = super.flatbuffers.overrideAttrs (old: {
-        VERSION = old.version;
+        env.VERSION = old.version;
       });
 
       gdal =
@@ -908,11 +910,13 @@ lib.composeManyExtensions [
 
         outputs = [ "out" "dev" ];
 
-        GRPC_BUILD_WITH_BORING_SSL_ASM = "";
-        GRPC_PYTHON_BUILD_SYSTEM_OPENSSL = 1;
-        GRPC_PYTHON_BUILD_SYSTEM_ZLIB = 1;
-        GRPC_PYTHON_BUILD_SYSTEM_CARES = 1;
-        DISABLE_LIBC_COMPATIBILITY = 1;
+        env = {
+          GRPC_BUILD_WITH_BORING_SSL_ASM = "";
+          GRPC_PYTHON_BUILD_SYSTEM_OPENSSL = 1;
+          GRPC_PYTHON_BUILD_SYSTEM_ZLIB = 1;
+          GRPC_PYTHON_BUILD_SYSTEM_CARES = 1;
+          DISABLE_LIBC_COMPATIBILITY = 1;
+        };
       });
 
       grpcio-tools = super.grpcio-tools.overridePythonAttrs (_old: {
@@ -954,8 +958,10 @@ lib.composeManyExtensions [
                 ++ lib.optionals mpiSupport [ self.mpi4py pkgs.openssh ]
               ;
               preBuild = if mpiSupport then "export CC=${mpi}/bin/mpicc" else "";
-              HDF5_DIR = "${pkgs.hdf5}";
-              HDF5_MPI = if mpiSupport then "ON" else "OFF";
+              env = {
+                HDF5_DIR = "${pkgs.hdf5}";
+                HDF5_MPI = if mpiSupport then "ON" else "OFF";
+              };
               # avoid strict pinning of numpy
               postPatch = ''
                 substituteInPlace setup.py \
@@ -1426,7 +1432,10 @@ lib.composeManyExtensions [
           inherit (pkgs.darwin.apple_sdk.frameworks) Cocoa;
         in
         {
-          XDG_RUNTIME_DIR = "/tmp";
+          env = {
+            MPLSETUPCFG = pkgs.writeText "mplsetup.cfg" (lib.generators.toINI { } passthru.config);
+            XDG_RUNTIME_DIR = "/tmp";
+          };
 
           buildInputs = old.buildInputs or [ ] ++ [
             pkgs.which
@@ -1461,8 +1470,6 @@ lib.composeManyExtensions [
           hardeningDisable = if stdenv.isDarwin then [ "strictoverflow" ] else [ ];
 
           passthru = old.passthru or { } // passthru;
-
-          MPLSETUPCFG = pkgs.writeText "mplsetup.cfg" (lib.generators.toINI { } passthru.config);
 
           # Matplotlib tries to find Tcl/Tk by opening a Tk window and asking the
           # corresponding interpreter object for its library paths. This fails if
@@ -1601,7 +1608,7 @@ lib.composeManyExtensions [
 
           # when testing reduce optimisation level to drastically reduce build time
           # (default is 3)
-          # MYPYC_OPT_LEVEL = 1;
+          # env.MYPYC_OPT_LEVEL = 1;
         } // envAttrs // lib.optionalAttrs (old.format != "wheel") {
           # FIXME: Remove patch after upstream has decided the proper solution.
           #        https://github.com/python/mypy/pull/11143
@@ -1642,11 +1649,13 @@ lib.composeManyExtensions [
           ];
 
           # Variables used to configure the build process
-          USE_NCCONFIG = "0";
-          HDF5_DIR = lib.getDev pkgs.hdf5;
-          NETCDF4_DIR = pkgs.netcdf;
-          CURL_DIR = pkgs.curl.dev;
-          JPEG_DIR = pkgs.libjpeg.dev;
+          env = {
+            USE_NCCONFIG = "0";
+            HDF5_DIR = lib.getDev pkgs.hdf5;
+            NETCDF4_DIR = pkgs.netcdf;
+            CURL_DIR = pkgs.curl.dev;
+            JPEG_DIR = pkgs.libjpeg.dev;
+          };
         }
       );
 
@@ -1796,7 +1805,7 @@ lib.composeManyExtensions [
         old: lib.optionalAttrs (!(old.src.isWheel or false)) {
           # Disable OpenCL on macOS
           # Can't use cmakeFlags because cmake is called by setup.py
-          CMAKE_ARGS = lib.optionalString stdenv.isDarwin "-DWITH_OPENCL=OFF";
+          env.CMAKE_ARGS = lib.optionalString stdenv.isDarwin "-DWITH_OPENCL=OFF";
 
           nativeBuildInputs = [ pkgs.cmake ] ++ old.nativeBuildInputs;
           buildInputs = [
@@ -1824,7 +1833,7 @@ lib.composeManyExtensions [
       openexr = super.openexr.overridePythonAttrs (
         old: {
           buildInputs = (old.buildInputs or [ ]) ++ [ pkgs.openexr pkgs.ilmbase ];
-          NIX_CFLAGS_COMPILE = [ "-I${pkgs.openexr.dev}/include/OpenEXR" "-I${pkgs.ilmbase.dev}/include/OpenEXR" ];
+          env.NIX_CFLAGS_COMPILE = [ "-I${pkgs.openexr.dev}/include/OpenEXR" "-I${pkgs.ilmbase.dev}/include/OpenEXR" ];
         }
       );
 
@@ -1940,7 +1949,7 @@ lib.composeManyExtensions [
 
       pdal = super.pdal.overridePythonAttrs (
         _old: {
-          PDAL_CONFIG = "${pkgs.pdal}/bin/pdal-config";
+          env.PDAL_CONFIG = "${pkgs.pdal}/bin/pdal-config";
         }
       );
 
@@ -2038,8 +2047,10 @@ lib.composeManyExtensions [
 
       prophet = super.prophet.overridePythonAttrs (old: {
         propagatedBuildInputs = (old.propagatedBuildInputs or [ ]) ++ [ pkgs.cmdstan self.cmdstanpy ];
-        PROPHET_REPACKAGE_CMDSTAN = "false";
-        CMDSTAN = "${pkgs.cmdstan}";
+        env = {
+          PROPHET_REPACKAGE_CMDSTAN = "false";
+          CMDSTAN = "${pkgs.cmdstan}";
+        };
       });
 
       psycopg2 = super.psycopg2.overridePythonAttrs (
@@ -2122,20 +2133,22 @@ lib.composeManyExtensions [
                   export PYARROW_PARALLEL=$NIX_BUILD_CORES
                 '';
 
-                PARQUET_HOME = _arrow-cpp;
-                inherit ARROW_HOME;
+                env = {
+                  PARQUET_HOME = _arrow-cpp;
+                  inherit ARROW_HOME;
 
-                PYARROW_BUILD_TYPE = "release";
-                PYARROW_WITH_FLIGHT = if _arrow-cpp.enableFlight then 1 else 0;
-                PYARROW_WITH_DATASET = 1;
-                PYARROW_WITH_PARQUET = 1;
-                PYARROW_CMAKE_OPTIONS = [
-                  "-DCMAKE_INSTALL_RPATH=${ARROW_HOME}/lib"
+                  PYARROW_BUILD_TYPE = "release";
+                  PYARROW_WITH_FLIGHT = if _arrow-cpp.enableFlight then 1 else 0;
+                  PYARROW_WITH_DATASET = 1;
+                  PYARROW_WITH_PARQUET = 1;
+                  PYARROW_CMAKE_OPTIONS = [
+                    "-DCMAKE_INSTALL_RPATH=${ARROW_HOME}/lib"
 
-                  # This doesn't use setup hook to call cmake so we need to workaround #54606
-                  # ourselves
-                  "-DCMAKE_POLICY_DEFAULT_CMP0025=NEW"
-                ];
+                    # This doesn't use setup hook to call cmake so we need to workaround #54606
+                    # ourselves
+                    "-DCMAKE_POLICY_DEFAULT_CMP0025=NEW"
+                  ];
+                };
 
                 dontUseCmakeConfigure = true;
               }
@@ -2329,9 +2342,11 @@ lib.composeManyExtensions [
 
       pyproj = super.pyproj.overridePythonAttrs (
         _old: {
-          PROJ_DIR = "${pkgs.proj}";
-          PROJ_LIBDIR = "${pkgs.proj}/lib";
-          PROJ_INCDIR = "${pkgs.proj.dev}/include";
+          env = {
+            PROJ_DIR = "${pkgs.proj}";
+            PROJ_LIBDIR = "${pkgs.proj}/lib";
+            PROJ_INCDIR = "${pkgs.proj.dev}/include";
+          };
         }
       );
 
@@ -2363,7 +2378,7 @@ lib.composeManyExtensions [
           propagatedBuildInputs = (old.propagatedBuildInputs or [ ]) ++ (
             if withApplePCSC then [ PCSC ] else [ pcsclite ]
           );
-          NIX_CFLAGS_COMPILE = lib.optionalString (! withApplePCSC)
+          env.NIX_CFLAGS_COMPILE = lib.optionalString (! withApplePCSC)
             "-I ${lib.getDev pcsclite}/include/PCSC";
           nativeBuildInputs = (old.nativeBuildInputs or [ ]) ++ [
             pkgs.swig
@@ -2809,7 +2824,7 @@ lib.composeManyExtensions [
 
       pywavelets = super.pywavelets.overridePythonAttrs (
         old: {
-          HDF5_DIR = "${pkgs.hdf5}";
+          env.HDF5_DIR = "${pkgs.hdf5}";
           propagatedBuildInputs = (old.propagatedBuildInputs or [ ]) ++ [ pkgs.hdf5 ];
         }
       );
@@ -3139,9 +3154,10 @@ lib.composeManyExtensions [
         old: {
           nativeBuildInputs = (old.nativeBuildInputs or [ ]) ++ [ pkgs.geos ];
 
-          GEOS_LIBRARY_PATH = "${pkgs.geos}/lib/libgeos_c${stdenv.hostPlatform.extensions.sharedLibrary}";
-
-          GEOS_LIBC = lib.optionalString (!stdenv.isDarwin) "${lib.getLib stdenv.cc.libc}/lib/libc${stdenv.hostPlatform.extensions.sharedLibrary}.6";
+          env = {
+            GEOS_LIBRARY_PATH = "${pkgs.geos}/lib/libgeos_c${stdenv.hostPlatform.extensions.sharedLibrary}";
+            GEOS_LIBC = lib.optionalString (!stdenv.isDarwin) "${lib.getLib stdenv.cc.libc}/lib/libc${stdenv.hostPlatform.extensions.sharedLibrary}.6";
+          };
 
           # Fix library paths
           postPatch = lib.optionalString (!(old.src.isWheel or false)) (old.postPatch or "" + ''
@@ -3198,7 +3214,7 @@ lib.composeManyExtensions [
       suds = super.suds.overridePythonAttrs (_old: {
         # Fix naming convention shenanigans.
         # https://github.com/suds-community/suds/blob/a616d96b070ca119a532ff395d4a2a2ba42b257c/setup.py#L648
-        SUDS_PACKAGE = "suds";
+        env.SUDS_PACKAGE = "suds";
       });
 
       systemd-python = super.systemd-python.overridePythonAttrs (old: {
@@ -3209,7 +3225,7 @@ lib.composeManyExtensions [
       tables = super.tables.overridePythonAttrs (
         old: {
           buildInputs = (old.buildInputs or [ ]) ++ [ self.pywavelets ];
-          HDF5_DIR = lib.getDev pkgs.hdf5;
+          env.HDF5_DIR = lib.getDev pkgs.hdf5;
           nativeBuildInputs = (old.nativeBuildInputs or [ ]) ++ [ pkg-config ];
           propagatedBuildInputs = (old.nativeBuildInputs or [ ]) ++ [ pkgs.hdf5 self.numpy self.numexpr ];
         }
@@ -3230,7 +3246,7 @@ lib.composeManyExtensions [
             self.wheel
             self.absl-py
           ];
-          HDF5_DIR = "${pkgs.hdf5}";
+          env.HDF5_DIR = "${pkgs.hdf5}";
           propagatedBuildInputs = (old.nativeBuildInputs or [ ]) ++ [
             pkgs.hdf5
             self.google-auth-oauthlib
@@ -3532,7 +3548,7 @@ lib.composeManyExtensions [
           ]);
         in
         {
-          DOXYGEN = "${pkgs.doxygen}/bin/doxygen";
+          env.DOXYGEN = "${pkgs.doxygen}/bin/doxygen";
 
           nativeBuildInputs = with pkgs; [
             which
