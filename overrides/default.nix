@@ -1426,7 +1426,7 @@ lib.composeManyExtensions [
           inherit (pkgs.darwin.apple_sdk.frameworks) Cocoa;
         in
         {
-          XDG_RUNTIME_DIR = "/tmp";
+          env.XDG_RUNTIME_DIR = "/tmp";
 
           buildInputs = old.buildInputs or [ ] ++ [
             pkgs.which
@@ -1462,7 +1462,7 @@ lib.composeManyExtensions [
 
           passthru = old.passthru or { } // passthru;
 
-          MPLSETUPCFG = pkgs.writeText "mplsetup.cfg" (lib.generators.toINI { } passthru.config);
+          env.MPLSETUPCFG = pkgs.writeText "mplsetup.cfg" (lib.generators.toINI { } passthru.config);
 
           # Matplotlib tries to find Tcl/Tk by opening a Tk window and asking the
           # corresponding interpreter object for its library paths. This fails if
